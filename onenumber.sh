@@ -11,6 +11,16 @@ text=
 
 #echo $keyword
 
+function manufacturepartnumber(){
+        ManufacturePartNumber=$(jq .SearchResults.Parts[0].ManufacturerPartNumber temp.json | cut -d \" -f2)
+        if [ $keyword == $ManufacturePartNumber ];then
+                text=$text","$ManufacturePartNumber
+        else
+                text=$text",Error------"$ManufacturePartNumber
+        fi
+}
+
+
 
 function moq(){
     for i in 0 1 2 3 4 
@@ -56,6 +66,7 @@ function price(){
 	#sleep 3
 	#echo $keyword
 	text=$keyword
+	manufacturepartnumber
 	stock
         moq
 	price
