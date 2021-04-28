@@ -1,0 +1,65 @@
+#!/bin/bash
+#keyword=1SMB5937BT3G
+keyword=$1
+apikey=4fa17cc0-7c23-4e11-93b1-187896d3a46f
+url="https://api.mouser.com/api/v1/search/keyword?apiKey=$apikey"
+accept="accept: application/json"
+content="Content-Type: application/json"
+json="{ \"SearchByKeywordRequest\": { \"keyword\": \"$keyword\", \"records\": 0, \"startingRecord\": 0, \"searchOptions\": \"string\", \"searchWithYourSignUpLanguage\": \"string\" }}"
+text=
+
+
+#echo $keyword
+
+
+function moq(){
+    for i in 0 1 2 3 4 
+    do 
+	PartType=$(jq .SearchResults.Parts[0].ProductAttributes[$i].AttributeName temp.json | cut -d \" -f2)
+	#echo $PartType
+	#echo .
+	if [ $PartType == "标准包装数量" ];then
+		MOQ=$(jq .SearchResults.Parts[0].ProductAttributes[$i].AttributeValue temp.json | cut -d \" -f2)
+		echo $MOQ
+		text=$text","$MOQ
+	fi
+    done
+}
+
+function stock(){
+    Stock=$(jq .SearchResults.Parts[0].Availability temp.json | cut  -d " " -f1 | cut -d \" -f2)
+    text=$text","$Stock
+}
+
+function price(){
+    for i in 0 1 2 3 4 5 6 7
+    do 
+	Qty=$(jq .SearchResults.Parts[0].PriceBreaks[$i].Quantity temp.json)
+	#echo $Qty
+	#echo .
+	if [ $Qty == "null" ]; then
+		#exit 0
+		return 0
+	fi
+
+	Price=$(jq .SearchResults.Parts[0].PriceBreaks[$i].Price temp.json | cut -d \" -f2)
+	echo -e $Qty "\t" $Price
+	text=$text","$Qty","$Price
+    done
+}
+
+#function readbom(){
+#}
+
+	json="{ \"SearchByKeywordRequest\": { \"keyword\": \"$keyword\", \"records\": 0, \"startingRecord\": 0, \"searchOptions\": \"string\", \"searchWithYourSignUpLanguage\": \"string\" }}"
+	curl -X POST "$url" -H "$accept" -H "$content" -d "$json" > temp.json
+	#sleep 3
+	#echo $keyword
+	text=$keyword
+	stock
+        moq
+	price
+	echo $text
+	echo $text >> bom.csv
+	text=
+
