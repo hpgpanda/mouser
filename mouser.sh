@@ -7,12 +7,6 @@ content="Content-Type: application/json"
 json="{ \"SearchByKeywordRequest\": { \"keyword\": \"$keyword\", \"records\": 0, \"startingRecord\": 0, \"searchOptions\": \"string\", \"searchWithYourSignUpLanguage\": \"string\" }}"
 text=
 
-if [ -f "./bom.csv" ];then
-	rm bom.csv
-fi
-
-touch bom.csv
-
 
 #echo $keyword
 
@@ -66,8 +60,11 @@ function price(){
 #function readbom(){
 #}
 
-for keyword in $(cat bom)
-do 
+
+
+function batchbom(){
+    for keyword in $(cat $file)
+    do 
 	json="{ \"SearchByKeywordRequest\": { \"keyword\": \"$keyword\", \"records\": 0, \"startingRecord\": 0, \"searchOptions\": \"string\", \"searchWithYourSignUpLanguage\": \"string\" }}"
 	curl -X POST "$url" -H "$accept" -H "$content" -d "$json" > temp.json 2>/dev/null
 	jq .SearchResults.NumberOfResult temp.json
@@ -91,5 +88,54 @@ do
 	sleep 0
 	rm temp.json
 	text=
-done 
+    done 
+}
 
+
+
+function onekeyword(){
+	cat bom.csv | grep -v $keyword > bom1.csv
+	mv bom1.csv bom.csv
+	json="{ \"SearchByKeywordRequest\": { \"keyword\": \"$keyword\", \"records\": 0, \"startingRecord\": 0, \"searchOptions\": \"string\", \"searchWithYourSignUpLanguage\": \"string\" }}"
+	curl -X POST "$url" -H "$accept" -H "$content" -d "$json" > temp.json 2>/dev/null
+	jq .SearchResults.NumberOfResult temp.json
+	while true
+	do
+		if [ $? == "0" ];then break; fi
+		echo $?
+		curl -X POST "$url" -H "$accept" -H "$content" -d "$json" > temp.json 2>/dev/null
+		jq .SearchResults.NumberOfResult temp.json
+	done	
+	#sleep 3
+	#echo $keyword
+	text=$keyword
+	manufacturepartnumber
+	stock
+        moq
+	price
+	echo $text
+	echo $text >> bom.csv
+	sleep 0
+	rm temp.json
+	text=
+}
+
+
+###--------main program----------------####
+option=$1
+case $option in 
+    -f) file=$2
+	if [ -f "./bom.csv" ];then
+	    rm bom.csv
+	fi
+	touch bom.csv
+	batchbom
+	;;
+    -s) keyword=$2
+	onekeyword
+	;;
+    *)
+	echo "$(basename $0):usage: [-f bomfile] | [-s keyword]"
+	exit 1
+	;;
+esac
