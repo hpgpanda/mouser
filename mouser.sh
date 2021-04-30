@@ -12,7 +12,7 @@ text=
 
 function manufacturepartnumber(){
 	ManufacturePartNumber=$(jq .SearchResults.Parts[0].ManufacturerPartNumber temp.json | cut -d \" -f2)
-	if [ $keyword == $ManufacturePartNumber ];then 
+	if [ "$keyword" == "$ManufacturePartNumber" ];then 
 		text=$text","$ManufacturePartNumber
 	else
 		text=$text",Error------"$ManufacturePartNumber
@@ -63,7 +63,8 @@ function price(){
 
 
 function batchbom(){
-    for keyword in $(cat $file)
+    j=0
+    cat $file | while read keyword
     do 
 	json="{ \"SearchByKeywordRequest\": { \"keyword\": \"$keyword\", \"records\": 0, \"startingRecord\": 0, \"searchOptions\": \"string\", \"searchWithYourSignUpLanguage\": \"string\" }}"
 	curl -X POST "$url" -H "$accept" -H "$content" -d "$json" > temp.json 2>/dev/null
@@ -88,6 +89,12 @@ function batchbom(){
 	sleep 0
 	rm temp.json
 	text=
+	let j++
+	#echo j=$j
+	if [ $(($j%50)) == 0 ]; then 
+	    echo sleep now
+	    sleep 3
+	fi
     done 
 }
 
