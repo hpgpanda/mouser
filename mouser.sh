@@ -10,6 +10,7 @@ text=
 
 #echo $keyword
 
+#search manufacturepartnumber, and add partnumber to record: $text. 
 function manufacturepartnumber(){
 	ManufacturePartNumber=$(jq .SearchResults.Parts[0].ManufacturerPartNumber temp.json | cut -d \" -f2)
 	if [ "$keyword" == "$ManufacturePartNumber" ];then 
@@ -20,7 +21,7 @@ function manufacturepartnumber(){
 }
 
 
-
+#search keyword , and return MOQ to record: $text.
 function moq(){
     for i in 0 1 2 3 4 
     do 
