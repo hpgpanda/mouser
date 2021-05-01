@@ -12,6 +12,7 @@ text=
 
 #search manufacturepartnumber, and add partnumber to record: $text. 
 function manufacturepartnumber(){
+   # for 
 	ManufacturePartNumber=$(jq .SearchResults.Parts[0].ManufacturerPartNumber temp.json | cut -d \" -f2)
 	if [ "$keyword" == "$ManufacturePartNumber" ];then 
 		text=$text","$ManufacturePartNumber
@@ -42,7 +43,7 @@ function stock(){
 }
 
 function price(){
-    for i in 0 1 2 3 4 5 6 7
+    for i in {0..8}
     do 
 	Qty=$(jq .SearchResults.Parts[0].PriceBreaks[$i].Quantity temp.json)
 	#echo $Qty
