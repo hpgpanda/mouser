@@ -7,18 +7,36 @@ content="Content-Type: application/json"
 json="{ \"SearchByKeywordRequest\": { \"keyword\": \"$keyword\", \"records\": 0, \"startingRecord\": 0, \"searchOptions\": \"string\", \"searchWithYourSignUpLanguage\": \"string\" }}"
 text=
 
+#_debug=true
+_debug=false
+
+#parameter
+resultno=		#search keyword, and match result number
+
+
 
 #echo $keyword
 
 #search manufacturepartnumber, and add partnumber to record: $text. 
 function manufacturepartnumber(){
-   # for 
-	ManufacturePartNumber=$(jq .SearchResults.Parts[0].ManufacturerPartNumber temp.json | cut -d \" -f2)
+    resultno=$(jq .SearchResults.NumberOfResult temp.json)
+    if [ $_debug == true ]; then
+    	echo $resultno
+    fi 
+    for ((n=0;n<$resultno;n++));
+    do 
+	ManufacturePartNumber=$(jq .SearchResults.Parts[$n].ManufacturerPartNumber temp.json | cut -d \" -f2)
 	if [ "$keyword" == "$ManufacturePartNumber" ];then 
 		text=$text","$ManufacturePartNumber
+		return 0
 	else
 		text=$text",Error------"$ManufacturePartNumber
 	fi
+	if [ $_debug == true ];then
+		echo "ManufacturePartnumber="$text
+	fi
+
+   done
 }
 
 
@@ -26,11 +44,11 @@ function manufacturepartnumber(){
 function moq(){
     for i in 0 1 2 3 4 
     do 
-	PartType=$(jq .SearchResults.Parts[0].ProductAttributes[$i].AttributeName temp.json | cut -d \" -f2)
+	PartType=$(jq .SearchResults.Parts[$n].ProductAttributes[$i].AttributeName temp.json | cut -d \" -f2)
 	#echo $PartType
 	#echo .
 	if [ $PartType == "标准包装数量" ];then
-		MOQ=$(jq .SearchResults.Parts[0].ProductAttributes[$i].AttributeValue temp.json | cut -d \" -f2)
+		MOQ=$(jq .SearchResults.Parts[$n].ProductAttributes[$i].AttributeValue temp.json | cut -d \" -f2)
 		#echo $MOQ
 		text=$text","$MOQ
 	fi
@@ -38,14 +56,14 @@ function moq(){
 }
 
 function stock(){
-    Stock=$(jq .SearchResults.Parts[0].Availability temp.json | cut  -d " " -f1 | cut -d \" -f2)
+    Stock=$(jq .SearchResults.Parts[$n].Availability temp.json | cut  -d " " -f1 | cut -d \" -f2)
     text=$text","$Stock
 }
 
 function price(){
     for i in {0..8}
     do 
-	Qty=$(jq .SearchResults.Parts[0].PriceBreaks[$i].Quantity temp.json)
+	Qty=$(jq .SearchResults.Parts[$n].PriceBreaks[$i].Quantity temp.json)
 	#echo $Qty
 	#echo .
 	if [ $Qty == "null" ]; then
@@ -53,7 +71,7 @@ function price(){
 		return 0
 	fi
 
-	Price=$(jq .SearchResults.Parts[0].PriceBreaks[$i].Price temp.json | cut -d \" -f2)
+	Price=$(jq .SearchResults.Parts[$n].PriceBreaks[$i].Price temp.json | cut -d \" -f2)
 	#echo -e $Qty "\t" $Price
 	text=$text","$Qty","$Price
     done
@@ -70,22 +88,40 @@ function batchbom(){
     do 
 	json="{ \"SearchByKeywordRequest\": { \"keyword\": \"$keyword\", \"records\": 0, \"startingRecord\": 0, \"searchOptions\": \"string\", \"searchWithYourSignUpLanguage\": \"string\" }}"
 	curl -X POST "$url" -H "$accept" -H "$content" -d "$json" > temp.json 2>/dev/null
-	jq .SearchResults.NumberOfResult temp.json
-	while true
-	do
-		if [ $? == "0" ];then break; fi
-		echo $?
-		curl -X POST "$url" -H "$accept" -H "$content" -d "$json" > temp.json 2>/dev/null
-		jq .SearchResults.NumberOfResult temp.json
+	resultno=$(jq .SearchResults.NumberOfResult temp.json)
+	#while [ $resultno != "0" ]
+	#do
+		#if [ $resultno == "0" ];then break; fi
+	#	if [ $_debug == true ];then
+	#	    echo "resultno="$resultno
+	#	fi
+	#	curl -X POST "$url" -H "$accept" -H "$content" -d "$json" > temp.json 2>/dev/null
+	#	$resultno=jq .SearchResults.NumberOfResult temp.json
 		
-	done 
+	#done
+
 	#sleep 3
 	#echo $keyword
 	text=$keyword
+	if [ $_debug == true ];then
+	    echo "manufacturepartnumber"
+	fi
 	manufacturepartnumber
+	if [ $_debug == true ];then
+	    echo "stock"
+	fi
 	stock
+	if [ $_debug == true ];then
+	    echo "moq"
+	fi
         moq
+	if [ $_debug == true ];then
+	    echo "price"
+	fi
 	price
+	if [ $_debug == true ];then
+	    echo "show result"
+	fi
 	echo $text
 	echo $text >> bom.csv
 	sleep 0
@@ -103,7 +139,7 @@ function batchbom(){
 
 
 function onekeyword(){
-	cat bom.csv | grep -v $keyword > bom1.csv
+	cat bom.csv | grep -v "$keyword" > bom1.csv
 	mv bom1.csv bom.csv
 	json="{ \"SearchByKeywordRequest\": { \"keyword\": \"$keyword\", \"records\": 0, \"startingRecord\": 0, \"searchOptions\": \"string\", \"searchWithYourSignUpLanguage\": \"string\" }}"
 	curl -X POST "$url" -H "$accept" -H "$content" -d "$json" > temp.json 2>/dev/null
@@ -111,7 +147,7 @@ function onekeyword(){
 	while true
 	do
 		if [ $? == "0" ];then break; fi
-		echo $?
+		echo "$?="$?
 		curl -X POST "$url" -H "$accept" -H "$content" -d "$json" > temp.json 2>/dev/null
 		jq .SearchResults.NumberOfResult temp.json
 	done	
@@ -142,6 +178,9 @@ case $option in
 	;;
     -s) keyword=$2
 	onekeyword
+	;;
+    -t)
+	manufacturepartnumber
 	;;
     *)
 	echo "$(basename $0):usage: [-f bomfile] | [-s keyword]"
